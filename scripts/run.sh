@@ -10,5 +10,4 @@ docker run \
   -e=ROS_DOMAIN_ID \
   -v $(realpath config):/root/ros2_ws/src/glim/config \
   -v /dev/dri:/dev/dri:ro \
-  my/ros:glim2-thesis \
-  bash
+  my/ros:glim2-thesis

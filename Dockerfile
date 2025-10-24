@@ -1,57 +1,53 @@
-ARG BASE_IMAGE=koide3/glim_ros2:jazzy
+ARG BASE_IMAGE=koide3/gtsam_points:jammy_gtsam4.3a0
 FROM $BASE_IMAGE
 
+ARG ROS_DISTRO=humble
 
+RUN apt-get update \
+  && apt-get upgrade -y \
+  # install dependencies
+  && apt-get install --no-install-recommends -y \
+    curl libfmt-dev libspdlog-dev libopencv-dev zenity \
+  # install ROS
+  && curl -sSL https://raw.githubusercontent.com/ros/rosdistro/master/ros.key -o /usr/share/keyrings/ros-archive-keyring.gpg \
+  && echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/ros-archive-keyring.gpg] http://packages.ros.org/ros2/ubuntu $(. /etc/os-release && echo $UBUNTU_CODENAME) main" | tee /etc/apt/sources.list.d/ros2.list > /dev/null \
+  && apt-get update \
+  && apt-get install --no-install-recommends -y \
+    python3-colcon-common-extensions \
+    ros-${ROS_DISTRO}-ros-base ros-${ROS_DISTRO}-cv-bridge \
+    ros-${ROS_DISTRO}-image-transport-plugins ros-${ROS_DISTRO}-tf2-ros \
+  # clean
+  && apt-get clean \
+  && rm -rf /var/lib/apt/lists/*
+
+RUN echo "#!/bin/bash" >> /ros_entrypoint.sh \
+  && echo "set -e" >> /ros_entrypoint.sh \
+  && echo "source /opt/ros/${ROS_DISTRO}/setup.bash" >> /ros_entrypoint.sh \
+  && echo "source /root/ros2_ws/install/setup.bash" >> /ros_entrypoint.sh \
+  && echo 'exec "$@"' >> /ros_entrypoint.sh \
+  && chmod a+x /ros_entrypoint.sh
+
+# Insert GLIM projects
 WORKDIR /root/ros2_ws/src
-RUN rm -rf glim_ros2/*
-ADD . glim_ros2
+RUN git clone https://github.com/koide3/glim.git
+COPY . ./glim_ros2
 
-
-
+# Build GLIM
 WORKDIR /root/ros2_ws
-RUN sed -i '104 i set(USE_SCOPED_HEADER_INSTALL_DIR TRUE)' /root/ros2_ws/src/glim_ros2/CMakeLists.txt
-RUN rm -rf build/ log/
-# RUN /ros_entrypoint.sh && colcon build --continue-on-error
-#--symlink-install
+# RUN /bin/bash -c '. /opt/ros/${ROS_DISTRO}/setup.bash; colcon build --cmake-args -DCMAKE_BUILD_TYPE=Release -DBUILD_WITH_CUDA=OFF -DBUILD_WITH_VIEWER=ON'
 
 
-# RUN apt-get update \
-#   && apt-get install --no-install-recommends -y \
-#     libfmt-dev libspdlog-dev libopencv-dev \
-#   && apt-get clean \
-#   && rm -rf /var/lib/apt/lists/*
 
-# WORKDIR /root/ros2_ws/
+######  My changes #######
 
-# # Install gtsam
-# RUN git clone https://github.com/borglab/gtsam
-# RUN cd gtsam && git checkout 4.3a0
-# RUN mkdir build && cd build
-# RUN cmake .. -DGTSAM_BUILD_EXAMPLES_ALWAYS=OFF \
-#          -DGTSAM_BUILD_TESTS=OFF \
-#          -DGTSAM_WITH_TBB=OFF \
-#          -DGTSAM_USE_SYSTEM_EIGEN=ON \
-#          -DGTSAM_BUILD_WITH_MARCH_NATIVE=OFF
-# RUN make -j$(nproc)
-# RUN make install
+# Install usefull packages
+RUN apt-get update && apt install -y tmux vim wget
 
-# # without viewer and CUDA
-# COPY . /root/glim
-# WORKDIR /root/glim/build
-# RUN cmake .. \
-#   -DBUILD_WITH_CUDA=OFF \
-#   -DBUILD_WITH_VIEWER=OFF \
-#   -DBUILD_WITH_MARCH_NATIVE=OFF \
-#   -DCMAKE_BUILD_TYPE=Release
-# RUN  make -j$(nproc)
 
-# # with viewer
-# WORKDIR /root/glim/build
-# RUN cmake .. \
-#   -DBUILD_WITH_CUDA=OFF \
-#   -DBUILD_WITH_VIEWER=ON \
-#   -DBUILD_WITH_MARCH_NATIVE=OFF \
-#   -DCMAKE_BUILD_TYPE=Release
-# RUN make -j$(nproc)
+# Add scripts and bags
+ADD ./scripts ./scripts
+ADD ./bags ./bags
 
-CMD ["bash"]
+
+# ENTRYPOINT ["/ros_entrypoint.sh"]
+CMD ["tmux"]
