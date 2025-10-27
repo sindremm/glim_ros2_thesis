@@ -27,15 +27,6 @@ RUN echo "#!/bin/bash" >> /ros_entrypoint.sh \
   && echo 'exec "$@"' >> /ros_entrypoint.sh \
   && chmod a+x /ros_entrypoint.sh
 
-# Insert GLIM projects
-WORKDIR /root/ros2_ws/src
-RUN git clone https://github.com/koide3/glim.git
-COPY . ./glim_ros2
-
-# Build GLIM
-WORKDIR /root/ros2_ws
-# RUN /bin/bash -c '. /opt/ros/${ROS_DISTRO}/setup.bash; colcon build --cmake-args -DCMAKE_BUILD_TYPE=Release -DBUILD_WITH_CUDA=OFF -DBUILD_WITH_VIEWER=ON'
-
 
 
 ######  My changes #######
@@ -43,11 +34,23 @@ WORKDIR /root/ros2_ws
 # Install usefull packages
 RUN apt-get update && apt install -y tmux vim wget
 
+# Insert GLIM projects
+WORKDIR /root/ros2_ws/src
+RUN git clone https://github.com/koide3/glim.git
+# Replace GILM config (for running on cpu)
+RUN rm -rf ./glim/config
+COPY ./config ./glim/config
+COPY . ./glim_ros2
+
+# # Build GLIM
+WORKDIR /root/ros2_ws
+RUN /bin/bash -c '. /opt/ros/${ROS_DISTRO}/setup.bash; colcon build --cmake-args -DCMAKE_BUILD_TYPE=Release -DBUILD_WITH_CUDA=OFF -DBUILD_WITH_VIEWER=ON'
+
 
 # Add scripts and bags
-ADD ./scripts ./scripts
-ADD ./bags ./bags
+COPY ./scripts ./scripts
+COPY ./bags ./bags
 
 
-# ENTRYPOINT ["/ros_entrypoint.sh"]
+ENTRYPOINT ["/ros_entrypoint.sh"]
 CMD ["tmux"]
