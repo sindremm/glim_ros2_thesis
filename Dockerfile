@@ -40,7 +40,7 @@ RUN git clone https://github.com/koide3/glim.git
 # Replace GILM config (for running on cpu)
 RUN rm -rf ./glim/config
 COPY ./config ./glim/config
-COPY . ./glim_ros2
+COPY ./glim_ros2 ./glim_ros2
 
 # # Build GLIM
 WORKDIR /root/ros2_ws
